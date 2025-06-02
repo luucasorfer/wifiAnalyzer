@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WiFi-Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Estilo Externo -->
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/styleNivel_6.css') }}"
+    />
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body class="bg-gray-100 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="bg-white shadow-md py-4 px-6 relative">
+      <!-- UNICAMP Logo -->
+      <div class="absolute left-6 top-4">
+        <img
+          src="https://www.unicamp.br/unicamp/sites/default/files/logoUnicamp_0.png"
+          alt="UNICAMP Logo"
+          class="h-12"
+        />
+      </div>
+
+      <!-- Title -->
+      <h1 class="text-3xl font-bold text-center text-red-600">WiFi-Analyzer</h1>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-6 main-content flex flex-col md:flex-row">
+      <!-- Left Side - WiFi List -->
+      <div
+        class="wifi-list w-full md:w-1/2 bg-white rounded-lg shadow-md p-4 mr-0 md:mr-4"
+      >
+        <h2 class="text-xl font-semibold mb-4 text-gray-800">
+          Redes Wi-Fi Detectadas
+        </h2>
+        <div
+          class="scrollable-area h-80 overflow-y-auto bg-gray-50 py-2 px-3 rounded-md mb-6"
+        >
+          <div id="wifiList" class="space-y-2">
+            <!-- Sample WiFi networks (will be populated by JavaScript) -->
+          </div>
+        </div>
+
+        <h2 class="text-xl font-semibold mb-4 text-gray-800">
+          5 Melhores RSSIs
+        </h2>
+        <div
+          class="scrollable-area h-64 overflow-y-auto bg-gray-50 py-2 px-3 rounded-md"
+        >
+          <div id="bestRssiList" class="space-y-2">
+            <!-- Sample best RSSIs (will be populated by JavaScript) -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side - Analysis Panel -->
+      <div
+        class="right-panel w-full md:w-1/2 bg-white rounded-lg shadow-md p-4"
+      >
+        <div class="space-y-4">
+          <div>
+            <label
+              for="networkName"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Nome da Rede</label
+            >
+            <input
+              type="text"
+              id="networkName"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+              placeholder="Digite o nome da rede"
+            />
+          </div>
+
+          <div>
+            <label
+              for="measurements"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Número de medidas para média</label
+            >
+            <input
+              type="number"
+              id="measurements"
+              min="1"
+              max="100"
+              value="10"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+
+          <div
+            class="mt-6 bg-gray-100 rounded-lg p-4 h-64 flex items-center justify-center"
+          >
+            <canvas id="nivel6Chart" width="600" height="300"></canvas>
+          </div>
+
+          <button
+            id="analyzeBtn"
+            class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-md transition duration-200 flex items-center justify-center"
+          >
+            <i class="fas fa-chart-line mr-2"></i> Analisar
+          </button>
+
+          <div class="mt-6 space-y-3">
+            <div class="flex justify-between border-b pb-2">
+              <span class="font-medium text-gray-700">Rede analisada:</span>
+              <span id="analyzedNetwork" class="text-gray-600">Nenhuma</span>
+            </div>
+            <div class="flex justify-between border-b pb-2">
+              <span class="font-medium text-gray-700">Média RSSI:</span>
+              <span id="averageRssi" class="text-gray-600">-</span>
+            </div>
+            <div class="flex justify-between border-b pb-2">
+              <span class="font-medium text-gray-700">Média últimas N:</span>
+              <span id="lastNAverage" class="text-gray-600">-</span>
+            </div>
+            <div class="flex justify-between border-b pb-2">
+              <span class="font-medium text-gray-700">Menor valor:</span>
+              <span id="minValue" class="text-gray-600">-</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-medium text-gray-700">Maior valor:</span>
+              <span id="maxValue" class="text-gray-600">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer
+      class="bg-white shadow-inner py-4 px-6 flex flex-col md:flex-row justify-between items-center"
+    >
+      <div class="text-gray-600 mb-2 md:mb-0">
+        <i class="fas fa-wifi mr-1"></i> Curso Redes Sem fio para IoT
+      </div>
+      <div class="text-red-600 font-medium">
+        <a
+          href="https://iotcursos.com.br"
+          target="_blank"
+          class="hover:underline"
+          >iotcursos.com.br</a
+        >
+      </div>
+    </footer>
+    <!-- Script Externo - renderTable.js -->
+    <script src="{{ url_for('static', filename='js/renderTable.js') }}"></script>
+    <!-- Script Externo - chartjs.js -->
+    <script src="{{ url_for('static', filename='js/chartjs.js') }}"></script>
+  </body>
+</html>

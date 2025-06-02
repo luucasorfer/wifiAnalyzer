@@ -1,0 +1,33 @@
+.scrollable-area {
+  scrollbar-width: thin;
+  scrollbar-color: #ef4444 #f3f4f6;
+}
+
+.scrollable-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollable-area::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+.scrollable-area::-webkit-scrollbar-thumb {
+  background-color: #ef4444;
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+
+  .wifi-list,
+  .right-panel {
+    width: 100% !important;
+  }
+
+  .right-panel {
+    margin-top: 1.5rem;
+  }
+}
