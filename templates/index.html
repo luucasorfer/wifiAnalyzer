@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redes WiFi Encontradas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body class="bg-gray-50">
+    <div class="container mx-auto px-4 pt-8">
+      <header class="mb-8 text-center">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
+          <i class="fas fa-wifi mr-2 text-blue-500"></i>
+          Redes WiFi Encontradas
+        </h1>
+        <p class="text-gray-600">Dados coletados pelo ESP8266 em tempo real</p>
+      </header>
+
+      <div
+        class="table-container bg-white rounded-xl shadow-md overflow-hidden"
+      >
+        <div
+          class="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center"
+        >
+          <h2 class="text-lg font-semibold text-gray-700 mb-2 sm:mb-0">
+            <i class="fas fa-list-ul mr-2 text-blue-400"></i>
+            Lista de Redes
+          </h2>
+          <div
+            class="flex flex-col sm:flex-row items-start sm:items-center gap-4"
+          >
+            <div class="text-sm text-gray-500">
+              <span id="network-count" class="font-medium">0</span> redes
+              encontradas
+            </div>
+            <button
+              onclick="fetchWifiData()"
+              class="flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+            >
+              <i class="fas fa-sync-alt"></i>
+              <span>Atualizar</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="scrollable-table">
+          <table class="wifi-table w-full">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr
+                class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                <th class="px-6 py-3 cursor-pointer" data-sort="ssid">Rede</th>
+                <th class="px-6 py-3 cursor-pointer" data-sort="rssi">Sinal</th>
+                <th class="px-6 py-3 cursor-pointer" data-sort="channel">
+                  Canal
+                </th>
+                <th class="px-6 py-3 cursor-pointer" data-sort="frequency">
+                  Frequência
+                </th>
+                <th class="px-6 py-3 cursor-pointer" data-sort="rssi">RSSI</th>
+              </tr>
+            </thead>
+            <tbody id="wifi-list" class="divide-y divide-gray-200">
+              <!-- Populado via JavaScript -->
+            </tbody>
+          </table>
+          <div id="empty-state" class="empty-state hidden">
+            <i class="fas fa-wifi-slash text-4xl mb-4 text-gray-400"></i>
+            <p class="text-lg font-medium">Nenhum dado foi recebido ainda.</p>
+            <p class="text-sm">
+              Aguarde a sincronização para exibição dos dados.
+            </p>
+          </div>
+        </div>
+
+        <div class="legend-container">
+          <div class="flex flex-wrap items-center justify-center gap-4">
+            <div class="flex items-center">
+              <i class="fas fa-circle signal-excellent mr-2"></i>
+              <span>Excelente (≥ -50dBm)</span>
+            </div>
+            <div class="flex items-center">
+              <i class="fas fa-circle signal-good mr-2"></i>
+              <span>Bom (> -50dBm a -60dBm)</span>
+            </div>
+            <div class="flex items-center">
+              <i class="fas fa-circle signal-fair mr-2"></i>
+              <span>Razoável (> -60dBm a -70dBm)</span>
+            </div>
+            <div class="flex items-center">
+              <i class="fas fa-circle signal-weak mr-2"></i>
+              <span>Fraco (< -70dBm)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="mt-8 text-center text-sm text-gray-500">
+        <p>Dados atualizados em: <span id="update-time"></span></p>
+        <p class="mt-1">ESP8266 WiFi Scanner © 2023</p>
+      </footer>
+    </div>
+
+    <!-- Tooltip dinâmico -->
+    <div id="dynamic-tooltip" class="hidden"></div>
+
+    <script>
+      let currentSort = { key: "rssi", asc: false };
+      let cachedWifiNetworks = [];
+
+      function getSignalQuality(rssi) {
+        if (rssi >= -50) {
+          return {
+            class: "signal-excellent",
+            icon: "fa-signal",
+            label: "Excelente",
+            tooltip:
+              "Sinal muito forte, ideal para conexões estáveis e de alta velocidade.",
+          };
+        } else if (rssi >= -60) {
+          return {
+            class: "signal-good",
+            icon: "fa-signal",
+            label: "Bom",
+            tooltip:
+              "Sinal bom, suficiente para a maioria das atividades, mas pode haver pequenas variações.",
+          };
+        } else if (rssi >= -70) {
+          return {
+            class: "signal-fair",
+            icon: "fa-signal",
+            label: "Razoável",
+            tooltip:
+              "Sinal moderado, pode apresentar instabilidades ou lentidão em algumas situações.",
+          };
+        } else {
+          return {
+            class: "signal-weak",
+            icon: "fa-signal",
+            label: "Fraco",
+            tooltip:
+              "Sinal fraco, com alta probabilidade de falhas ou desconexões.",
+          };
+        }
+      }
+
+      function renderWifiNetworks(wifiNetworks) {
+        const wifiList = document.getElementById("wifi-list");
+        const emptyState = document.getElementById("empty-state");
+        wifiList.innerHTML = "";
+
+        if (wifiNetworks.length === 0) {
+          emptyState.classList.remove("hidden");
+        } else {
+          emptyState.classList.add("hidden");
+
+          wifiNetworks.forEach((network) => {
+            const signal = getSignalQuality(network.rssi);
+
+            const row = document.createElement("tr");
+            row.className = "transition-all duration-200 ease-in-out";
+
+            row.innerHTML = `
+              <td class="px-6 py-4 whitespace-nowrap" data-label="Rede">
+                <div class="flex items-center">
+                  <i class="fas fa-wifi ${signal.class} mr-2"></i>
+                  <div class="font-medium text-gray-900">${
+                    network.ssid || "Oculto"
+                  }</div>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap" data-label="Sinal">
+                <div class="flex items-center"
+                  onmouseover="showTooltip(event, '${signal.tooltip}')"
+                  onmouseout="hideTooltip()"
+                  onmousemove="moveTooltip(event)">
+                  <i class="fas ${signal.icon} ${signal.class} mr-2"></i>
+                  <span class="text-gray-700">${signal.label}</span>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-gray-500" data-label="Canal">${
+                network.channel
+              }</td>
+              <td class="px-6 py-4 whitespace-nowrap text-gray-500" data-label="Frequência">${
+                network.frequency
+              } GHz</td>
+              <td class="px-6 py-4 whitespace-nowrap text-gray-500" data-label="RSSI">${
+                network.rssi
+              } dBm</td>
+            `;
+
+            wifiList.appendChild(row);
+          });
+        }
+
+        document.getElementById("network-count").textContent =
+          wifiNetworks.length;
+        document.getElementById("update-time").textContent =
+          new Date().toLocaleString();
+      }
+
+      function sortAndRender() {
+        const sorted = [...cachedWifiNetworks].sort((a, b) => {
+          const key = currentSort.key;
+          const valA = a[key];
+          const valB = b[key];
+          return typeof valA === "number"
+            ? currentSort.asc
+              ? valA - valB
+              : valB - valA
+            : currentSort.asc
+            ? String(valA).localeCompare(String(valB))
+            : String(valB).localeCompare(String(valA));
+        });
+
+        renderWifiNetworks(sorted);
+      }
+
+      async function fetchWifiData() {
+        try {
+          document.getElementById("update-time").textContent = "Atualizando...";
+          const response = await fetch("/get_wifi");
+          if (!response.ok) throw new Error("Erro na requisição");
+          cachedWifiNetworks = await response.json();
+          sortAndRender();
+        } catch (error) {
+          console.error("Erro ao buscar dados da ESP8266:", error);
+          document.getElementById("update-time").textContent =
+            "Falha ao atualizar - " + new Date().toLocaleString();
+          renderWifiNetworks([]);
+        }
+      }
+
+      // Tooltip functions
+      const tooltip = document.getElementById("dynamic-tooltip");
+
+      function showTooltip(event, text) {
+        tooltip.textContent = text;
+        tooltip.classList.remove("hidden");
+        tooltip.style.opacity = "1";
+        moveTooltip(event);
+      }
+
+      function hideTooltip() {
+        tooltip.classList.add("hidden");
+        tooltip.style.opacity = "0";
+      }
+
+      function moveTooltip(event) {
+        const offset = 15;
+        tooltip.style.left = `${event.pageX + offset}px`;
+        tooltip.style.top = `${event.pageY + offset}px`;
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        renderWifiNetworks([]);
+        fetchWifiData();
+        setInterval(fetchWifiData, 30000);
+
+        document.querySelectorAll("th[data-sort]").forEach((th) => {
+          th.addEventListener("click", () => {
+            const sortKey = th.getAttribute("data-sort");
+            currentSort.key === sortKey
+              ? (currentSort.asc = !currentSort.asc)
+              : ((currentSort.key = sortKey), (currentSort.asc = true));
+            sortAndRender();
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
