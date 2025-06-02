@@ -11,7 +11,7 @@
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
+      href="{{ url_for('static', filename='styleIndex.css') }}"
     />
   </head>
   <body class="bg-gray-50">
@@ -116,6 +116,8 @@
       let currentSort = { key: "rssi", asc: false };
       let cachedWifiNetworks = [];
 
+      // --- NÍVEL 1 ---
+      // Função para obter qualidade do sinal baseado no RSSI
       function getSignalQuality(rssi) {
         if (rssi >= -50) {
           return {
@@ -152,6 +154,49 @@
         }
       }
 
+      // --- NÍVEL 3 e 4 ---
+      // Função que faz abstração (Nível 3) e armazena dados agrupados por SSID (Nível 4)
+      function nivel3_abstractAndStore(wifiNetworks) {
+        // Estrutura: { ssid: { channel, frequency, rssi_values: [] } }
+        let nivel4Data = {};
+        const nivel4JSON = localStorage.getItem("nivel_4");
+
+        if (nivel4JSON) {
+          try {
+            nivel4Data = JSON.parse(nivel4JSON);
+          } catch (e) {
+            console.error("Erro ao parsear nivel_4 existente:", e);
+            nivel4Data = {};
+          }
+        }
+
+        wifiNetworks.forEach((network) => {
+          const ssid = network.ssid || "Oculto";
+
+          if (!nivel4Data[ssid]) {
+            nivel4Data[ssid] = {
+              channel: network.channel,
+              frequency: network.frequency,
+              rssi_values: [],
+            };
+          }
+
+          // Atualiza channel e frequency caso tenha mudado
+          nivel4Data[ssid].channel =
+            network.channel || nivel4Data[ssid].channel;
+          nivel4Data[ssid].frequency =
+            network.frequency || nivel4Data[ssid].frequency;
+
+          // Acumula o novo RSSI no array
+          nivel4Data[ssid].rssi_values.push(network.rssi);
+        });
+
+        localStorage.setItem("nivel_4", JSON.stringify(nivel4Data));
+        console.log("[Nível 4] Dados acumulados armazenados no localStorage");
+      }
+
+      // --- NÍVEL 1 ---
+      // Renderiza lista na tabela e atualiza contadores
       function renderWifiNetworks(wifiNetworks) {
         const wifiList = document.getElementById("wifi-list");
         const emptyState = document.getElementById("empty-state");
@@ -169,33 +214,33 @@
             row.className = "transition-all duration-200 ease-in-out";
 
             row.innerHTML = `
-              <td class="px-6 py-4 whitespace-nowrap" data-label="Rede">
-                <div class="flex items-center">
-                  <i class="fas fa-wifi ${signal.class} mr-2"></i>
-                  <div class="font-medium text-gray-900">${
-                    network.ssid || "Oculto"
-                  }</div>
-                </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap" data-label="Sinal">
-                <div class="flex items-center"
-                  onmouseover="showTooltip(event, '${signal.tooltip}')"
-                  onmouseout="hideTooltip()"
-                  onmousemove="moveTooltip(event)">
-                  <i class="fas ${signal.icon} ${signal.class} mr-2"></i>
-                  <span class="text-gray-700">${signal.label}</span>
-                </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-gray-500" data-label="Canal">${
-                network.channel
-              }</td>
-              <td class="px-6 py-4 whitespace-nowrap text-gray-500" data-label="Frequência">${
-                network.frequency
-              } GHz</td>
-              <td class="px-6 py-4 whitespace-nowrap text-gray-500" data-label="RSSI">${
-                network.rssi
-              } dBm</td>
-            `;
+        <td class="px-6 py-4 whitespace-nowrap" data-label="Rede">
+          <div class="flex items-center">
+            <i class="fas fa-wifi ${signal.class} mr-2"></i>
+            <div class="font-medium text-gray-900">${
+              network.ssid || "Oculto"
+            }</div>
+          </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap" data-label="Sinal">
+          <div class="flex items-center"
+            onmouseover="showTooltip(event, '${signal.tooltip}')"
+            onmouseout="hideTooltip()"
+            onmousemove="moveTooltip(event)">
+            <i class="fas ${signal.icon} ${signal.class} mr-2"></i>
+            <span class="text-gray-700">${signal.label}</span>
+          </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-gray-500" data-label="Canal">${
+          network.channel
+        }</td>
+        <td class="px-6 py-4 whitespace-nowrap text-gray-500" data-label="Frequência">${
+          network.frequency
+        } GHz</td>
+        <td class="px-6 py-4 whitespace-nowrap text-gray-500" data-label="RSSI">${
+          network.rssi
+        } dBm</td>
+      `;
 
             wifiList.appendChild(row);
           });
@@ -207,6 +252,8 @@
           new Date().toLocaleString();
       }
 
+      // --- NÍVEL 1 ---
+      // Ordena e renderiza os dados
       function sortAndRender() {
         const sorted = [...cachedWifiNetworks].sort((a, b) => {
           const key = currentSort.key;
@@ -224,12 +271,21 @@
         renderWifiNetworks(sorted);
       }
 
+      // --- NÍVEL 1 ---
+      // Busca dados da ESP8266, atualiza cache, abstrai (nivel3) e renderiza
       async function fetchWifiData() {
         try {
           document.getElementById("update-time").textContent = "Atualizando...";
           const response = await fetch("/get_wifi");
           if (!response.ok) throw new Error("Erro na requisição");
           cachedWifiNetworks = await response.json();
+
+          // Atualiza localStorage nivel_1 com dados crus
+          localStorage.setItem("nivel_1", JSON.stringify(cachedWifiNetworks));
+
+          // Nível 3: abstração e armazenamento nível 4
+          nivel3_abstractAndStore(cachedWifiNetworks);
+
           sortAndRender();
         } catch (error) {
           console.error("Erro ao buscar dados da ESP8266:", error);
@@ -239,7 +295,7 @@
         }
       }
 
-      // Tooltip functions
+      // --- Tooltip functions ---
       const tooltip = document.getElementById("dynamic-tooltip");
 
       function showTooltip(event, text) {
@@ -260,7 +316,101 @@
         tooltip.style.top = `${event.pageY + offset}px`;
       }
 
+      // --- NÍVEL 5 ---
+      // Monitora o parâmetro nivel_6_param para decidir se roda análise do nível 6
+      function nivel5_monitorParam() {
+        const paramStr = localStorage.getItem("nivel_6_param");
+        if (!paramStr) {
+          console.log(
+            "[Nível 5] Parâmetro 'nivel_6_param' não encontrado, aguardando...",
+          );
+          return;
+        }
+        const param = JSON.parse(paramStr);
+
+        if (
+          !param.ssid ||
+          param.ssid.trim() === "" ||
+          !param.last_n ||
+          param.last_n <= 0 ||
+          param.status === "done"
+        ) {
+          // Parâmetro inválido, vazio ou já processado
+          console.log(
+            "[Nível 5] Parâmetro não está pronto para uso ou já concluído.",
+          );
+          return;
+        }
+
+        if (param.status === "pending") {
+          console.log(
+            `[Nível 5] Parâmetro detectado para análise: ${param.ssid}, últimas ${param.last_n} medidas.`,
+          );
+
+          // Roda o nível 6 - analisa e gera gráfico
+          nivel6_analisaEGeraGrafico(param.ssid, param.last_n);
+
+          // Marca como concluído para não rodar repetidamente
+          param.status = "done";
+          localStorage.setItem("nivel_6_param", JSON.stringify(param));
+        }
+      }
+
+      // --- NÍVEL 6 ---
+      // Analisa os últimos n valores de RSSI da rede especificada e gera o gráfico (placeholder)
+      function nivel6_analisaEGeraGrafico(ssid, last_n) {
+        console.log(
+          `[Nível 6] Analisando ${last_n} últimas medidas para ${ssid}`,
+        );
+
+        const nivel4DataStr = localStorage.getItem("nivel_4");
+        if (!nivel4DataStr) {
+          console.warn("[Nível 6] Dados do nível 4 não encontrados.");
+          return;
+        }
+
+        const nivel4Data = JSON.parse(nivel4DataStr);
+
+        if (!nivel4Data[ssid]) {
+          console.warn(`[Nível 6] Rede ${ssid} não encontrada nos dados.`);
+          return;
+        }
+
+        const rssi_values = nivel4Data[ssid].rssi_values || [];
+        if (rssi_values.length === 0) {
+          console.warn(`[Nível 6] Sem dados de RSSI para a rede ${ssid}.`);
+          return;
+        }
+
+        // Pega os últimos last_n valores
+        const valoresParaAnalise = rssi_values.slice(-last_n);
+
+        // TODO: Implementar análise e geração de gráfico real
+        // Por enquanto só logamos os dados
+        console.log(`[Nível 6] Dados para gráfico:`, valoresParaAnalise);
+
+        // Aqui você pode usar uma lib de gráfico (Chart.js, etc) para gerar visualização
+      }
+
+      // --- INÍCIO ---
+      // Setup inicial
       document.addEventListener("DOMContentLoaded", () => {
+        // Limpa localStorage das chaves usadas para reiniciar do zero
+        localStorage.removeItem("nivel_1");
+        localStorage.removeItem("nivel_4");
+        localStorage.removeItem("nivel_5");
+        localStorage.removeItem("nivel_6_param");
+
+        // Inicializa parametro nivel_6_param vazio para controle do nível 5/6
+        if (!localStorage.getItem("nivel_6_param")) {
+          const paramDefault = {
+            ssid: "",
+            last_n: 0,
+            status: "",
+          };
+          localStorage.setItem("nivel_6_param", JSON.stringify(paramDefault));
+        }
+
         renderWifiNetworks([]);
         fetchWifiData();
         setInterval(fetchWifiData, 30000);
@@ -274,7 +424,12 @@
             sortAndRender();
           });
         });
+
+        // Nível 5: Monitorar parâmetro a cada 5 segundos
+        setInterval(nivel5_monitorParam, 5000);
       });
+
+      // Fim do código
     </script>
   </body>
 </html>

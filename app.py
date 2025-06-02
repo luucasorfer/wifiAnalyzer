@@ -20,6 +20,11 @@ def get_wifi():
         print(f"Erro ao buscar dados da ESP8266: {e}")
         return jsonify([])
 
+
+@app.route('/nivel6')
+def nivel_6():
+    # Página do nível 6
+    return render_template('nivel_6.html')
+
 if __name__ == "__main__":
   app.run(debug=True, host='0.0.0.0')
-
